@@ -73,6 +73,10 @@ def parse_report_filename(report):
     parts[3] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(parts[3])))
     return tuple(parts)
 
+RE_IPPATTERN = re.compile(r'^([0-9]{1,3}\.){4}$')
+def invalid_ip(ip):
+    return None == RE_IPPATTERN.match(ip+'.')
+
 if __name__ == '__main__':
     if len(sys.argv) <= 2:
         print "usage:%s domain reportfile [reportfile2 ...]" % sys.argv[0]
@@ -84,7 +88,10 @@ if __name__ == '__main__':
         summary = {'fail': 0, 'domain.fail': 0, 'pass': 0, 'domain.pass': 0}
         for record in analyze(report):
             record['count'] = int(record['count'])
-            ip = record['source_ip']
+            ip = record['source_ip'].strip()
+            if invalid_ip(ip):
+                print >> sys.stderr, 'invalid ip from %s:%s' % (report, ip)
+                continue
             ptr = q.dns_ptr(ip)
             fromdomain = in_iprange(spf_ip_ranges, ip) or domain in ' '.join(ptr)
             if 'pass' in (record['dkim'], record['spf']):
@@ -98,4 +105,4 @@ if __name__ == '__main__':
             # detail printer
             #print "%s: ptr=%s, %s=%s, count=%s, dkim=%s, spf=%s" % (ip, ptr, domain, fromdomain, record['count'], record['dkim'],record['spf'])
         print '%s->%s on %s-%s:' % parse_report_filename(report)
-        print 'fail=%(fail)s, domain.fail=%(domain.fail)s, pass=%(pass)s, domain.pass=%(domain.pass)s' % summary 
+        print 'fail=%(fail)s, domain.fail=%(domain.fail)s, pass=%(pass)s, domain.pass=%(domain.pass)s\n' % summary 
